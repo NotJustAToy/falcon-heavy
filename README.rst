@@ -36,7 +36,7 @@ Limitations
 License
 #######
 
-Copyright 2019 Not Just A Toy Corp.
+Copyright 2019-2020 Not Just A Toy Corp.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

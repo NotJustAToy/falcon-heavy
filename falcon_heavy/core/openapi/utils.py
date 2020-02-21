@@ -1,4 +1,4 @@
-# Copyright 2019 Not Just A Toy Corp.
+# Copyright 2019-2020 Not Just A Toy Corp.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import pathlib
 import typing as ty
 from urllib.parse import urljoin
 
@@ -39,7 +40,7 @@ def load_specification(
 ) -> ty.Optional[OpenAPIObject]:
     with open(path) as fh:
         referrer = load_func(fh)
-    base_uri = urljoin('file://', os.path.abspath(path))
+    base_uri = urljoin('file://', pathlib.Path(os.path.abspath(path)).as_uri())
     return OpenAPIObjectType().convert(
         referrer,
         Path(base_uri),
