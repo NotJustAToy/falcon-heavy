@@ -24,6 +24,7 @@ from .xml import XmlObject, XmlObjectType
 from .external_documentation import ExternalDocumentationObject, ExternalDocumentationObjectType
 from .discriminator import DiscriminatorObject, DiscriminatorObjectType
 from .constants import SCHEMA_TYPE, SCHEMA_FORMAT, PRIMITIVE_SCHEMA_TYPES, PARAMETER_TYPE
+from .utils import are_all_items_equal
 
 __all__ = (
     'SchemaObject',
@@ -188,8 +189,16 @@ class SchemaObject(t.Object):
         return self['additionalProperties']
 
     @property
-    def pattern_properties_(self) -> ty.Optional[ty.Mapping[ty.Pattern, 'SchemaObject']]:
+    def x_pattern_properties(self) -> ty.Optional[ty.Mapping[ty.Pattern, 'SchemaObject']]:
         return self.get('x-patternProperties')
+
+    @property
+    def x_merge(self) -> bool:
+        return self['x-merge']
+
+    @property
+    def is_mergeable(self) -> bool:
+        return self.x_merge and self.all_of is not None
 
     @property
     def default_content_type(self) -> ty.Optional[str]:
@@ -205,24 +214,65 @@ class SchemaObject(t.Object):
         else:
             return None
 
-    @property
-    def parameter_type(self) -> ty.Optional[str]:
-        if self.type == SCHEMA_TYPE.ARRAY:
+    @staticmethod
+    def _get_parameter_type_by_schema_type(schema_type: str) -> str:
+        if schema_type == SCHEMA_TYPE.ARRAY:
             return PARAMETER_TYPE.ARRAY
 
-        elif self.type == SCHEMA_TYPE.OBJECT:
+        elif schema_type == SCHEMA_TYPE.OBJECT:
             return PARAMETER_TYPE.OBJECT
 
-        elif self.type is not None:
+        else:
             return PARAMETER_TYPE.PRIMITIVE
 
-        return None
+    @property
+    def inferred_parameter_type(self) -> ty.Optional[str]:
+        def infer_by_subschemas(subschemas: ty.Sequence['SchemaObject']) -> ty.Optional[str]:
+            schema_types = [subschema.type for subschema in subschemas]
+            if are_all_items_equal(schema_types) and schema_types[0] is not None:
+                return self._get_parameter_type_by_schema_type(schema_types[0])
+            return None
+
+        if self.type is not None:
+            return self._get_parameter_type_by_schema_type(self.type)
+
+        elif self.all_of is not None:
+            return infer_by_subschemas(self.all_of)
+
+        elif self.any_of is not None:
+            return infer_by_subschemas(self.any_of)
+
+        elif self.one_of is not None:
+            return infer_by_subschemas(self.one_of)
+
+        elif self.not_ is not None:
+            return infer_by_subschemas(self.not_)
+
+        else:
+            return None
 
     def is_required(self, property_name):
         if self.required:
             return property_name in self.required
 
         return False
+
+    def merge(self, other: 'SchemaObject') -> None:
+        for prop_name, prop_value in other.properties.items():
+            if prop_name == 'properties':
+                self.properties.setdefault('properties', {}).update(prop_value)
+
+            elif prop_name == 'required':
+                self.properties.setdefault('required', set()).update(prop_value)
+
+            elif prop_name == 'x-patternProperties':
+                self.properties.setdefault('x-patternProperties', {}).update(prop_value)
+
+            else:
+                self.properties[prop_name] = prop_value
+
+        self.pattern_properties.update(other.pattern_properties)
+        self.additional_properties.update(other.additional_properties)
 
 
 class ReferenceSaver(t.AbstractConvertible[SchemaObject]):
@@ -330,7 +380,8 @@ class SchemaObjectType(BaseOpenAPIObjectType[SchemaObject], result_class=SchemaO
             "The value of `maxProperties` must be greater than or equal to `minProperties`",
         'improperly_discriminator_usage': "The `discriminator` can only be used with the keywords `anyOf` or `oneOf`",
         'read_only_and_write_only_are_mutually_exclusive':
-            "`readOnly` and `writeOnly` are mutually exclusive and cannot be set simultaneously"
+            "`readOnly` and `writeOnly` are mutually exclusive and cannot be set simultaneously",
+        'improperly_x_merge_usage': "The types of all subschemas in `allOf` must be the same when `x-merge` is true",
     }
 
     PROPERTIES: ty.ClassVar[t.Properties] = {
@@ -384,7 +435,8 @@ class SchemaObjectType(BaseOpenAPIObjectType[SchemaObject], result_class=SchemaO
             t.ReferenceType[SchemaObject](t.LazyType[SchemaObject](lambda: SchemaObjectType()))
         ], default=True),
         'x-patternProperties': RegexMapType[SchemaObject](t.MapType[SchemaObject](
-            t.LazyType[SchemaObject](lambda: SchemaObjectType())))
+            t.LazyType[SchemaObject](lambda: SchemaObjectType()))),
+        'x-merge': t.BooleanType(default=False),
     }
 
     def _convert(self, value: ty.Any, path: t.Path, *args: ty.Any, **context: ty.Any) -> SchemaObject:
@@ -606,5 +658,15 @@ class SchemaObjectType(BaseOpenAPIObjectType[SchemaObject], result_class=SchemaO
             self, value: SchemaObject, *args: ty.Any, **context: ty.Any) -> t.ValidationResult:
         if value.read_only and value.write_only:
             return self.messages['read_only_and_write_only_are_mutually_exclusive']
+
+        return None
+
+    def validate_x_merge(self, value: SchemaObject, *args: ty.Any, **context: ty.Any) -> t.ValidationResult:
+        if not value.is_mergeable or value.all_of is None:
+            return None
+
+        subschema_types = [subschema.type for subschema in value.all_of]
+        if not are_all_items_equal(subschema_types) or subschema_types[0] is None:
+            return self.messages['improperly_x_merge_usage']
 
         return None

@@ -555,6 +555,83 @@ class FactoriesTest(unittest.TestCase):
         self.assertEqual(cat_dog['pet']['nickname'], 'Max')
         self.assertTrue(isinstance(cat_dog['pet']['s'], int))
 
+    def test_generate_merged(self):
+        spec = {
+            'x-schemas': {
+                'Cat': {
+                    'type': 'object',
+                    'properties': {
+                        'name': {
+                            'type': 'string'
+                        },
+                        's': {
+                            'type': 'integer'
+                        }
+                    }
+                },
+                'Dog': {
+                    'type': 'object',
+                    'required': ['nickname'],
+                    'properties': {
+                        'nickname': {
+                            'type': 'string'
+                        }
+                    },
+                    'additionalProperties': False,
+                    'x-patternProperties': {
+                        'r.*': {
+                            'type': 'integer'
+                        }
+                    }
+                }
+            },
+            'type': 'object',
+            'properties': {
+                'pet': {
+                    'allOf': [
+                        {
+                            '$ref': '#/x-schemas/Cat'
+                        },
+                        {
+                            '$ref': '#/x-schemas/Dog'
+                        }
+                    ],
+                    'x-merge': True
+                }
+            }
+        }
+
+        spec = self._load(SchemaObjectType, spec)
+        type_ = self._generate_type(spec)
+
+        cat_dog_payload = {
+            'pet': {
+                'name': 'Misty',
+                'nickname': 'Max',
+                's': '45'
+            }
+        }
+
+        cat_dog = self._convert(type_, cat_dog_payload, strict=False)
+        self.assertEqual(cat_dog['pet']['name'], 'Misty')
+        self.assertEqual(cat_dog['pet']['nickname'], 'Max')
+        self.assertTrue(isinstance(cat_dog['pet']['s'], int))
+
+        invalid_cat_dog_payload = {
+            'pet': {
+                'name': 'Misty',
+                'nickname': 'Max',
+                's': 45,
+                'owner': 'Peter'
+            }
+        }
+
+        with self.assertSchemaErrorRaises({
+            '#/pet': "When `additionalProperties` is False, no unspecified properties are allowed. "
+                     "The following unspecified properties were found: 'owner'"
+        }):
+            self._convert(type_, invalid_cat_dog_payload)
+
     def test_generate_recursive_property(self):
         spec = {
             'properties': {
@@ -1035,9 +1112,11 @@ class FactoriesTest(unittest.TestCase):
                             },
                             "required": [
                                 "huntingSkill"
-                            ]
+                            ],
+                            "additionalProperties": False
                         }
-                    ]
+                    ],
+                    "x-merge": True
                 },
                 "Dog": {
                     "description": (
@@ -1059,9 +1138,11 @@ class FactoriesTest(unittest.TestCase):
                             },
                             "required": [
                                 "packSize"
-                            ]
+                            ],
+                            "additionalProperties": False
                         },
-                    ]
+                    ],
+                    "x-merge": True
                 }
             }
         }
@@ -1072,24 +1153,20 @@ class FactoriesTest(unittest.TestCase):
         payload = {
             "petType": "Cat",
             "name": "Misty",
-            "huntingSkill": "adventurous",
-            "age": 3
+            "huntingSkill": "adventurous"
         }
 
         cat = self._convert(type_, payload)
-        self.assertEqual(cat['age'], 3)
         self.assertEqual(cat['name'], "Misty")
         self.assertEqual(cat['huntingSkill'], "adventurous")
 
         payload = {
             "petType": "Dog",
             "name": "Max",
-            "packSize": 314,
-            "age": 2
+            "packSize": 314
         }
 
         dog = self._convert(type_, payload)
-        self.assertEqual(dog['age'], 2)
         self.assertEqual(dog['name'], "Max")
         self.assertEqual(dog['packSize'], 314)
 
@@ -1108,8 +1185,7 @@ class FactoriesTest(unittest.TestCase):
         }
 
         with self.assertSchemaErrorRaises({
-            '#': "Does not match all schemas from `allOf`. Invalid schema indexes: 1",
-            '#/1': "The following required properties are missed: 'huntingSkill'"
+            '#': "The following required properties are missed: 'huntingSkill'"
         }):
             self._convert(type_, payload)
 

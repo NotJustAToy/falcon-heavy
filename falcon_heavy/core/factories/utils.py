@@ -14,11 +14,21 @@
 
 import typing as ty
 
+from falcon_heavy.core import openapi as o
+
 __all__ = (
     'listtodict',
+    'merge_schemas',
 )
 
 
 def listtodict(l: ty.Sequence) -> ty.Mapping:
     """Converts list to dictionary"""
     return dict(zip(l[::2], l[1::2]))
+
+
+def merge_schemas(schemas: ty.Iterable[o.SchemaObject]) -> o.SchemaObject:
+    result = o.SchemaObject()
+    for schema in schemas:
+        result.merge(schema)
+    return result

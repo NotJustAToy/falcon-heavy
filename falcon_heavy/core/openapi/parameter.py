@@ -23,7 +23,8 @@ from .example import ExampleObject, ExampleObjectType
 from .validators import CONTENT_TYPE_VALIDATOR
 from .constants import (
     PARAMETER_LOCATION,
-    PARAMETER_STYLE
+    PARAMETER_STYLE,
+    PARAMETER_TYPE,
 )
 
 __all__ = (
@@ -94,6 +95,10 @@ class BaseParameterObject(t.Object):
 
         return None
 
+    @property
+    def x_parameter_type(self) -> ty.Optional[str]:
+        return self.get('x-parameterType')
+
 
 T_base = ty.TypeVar('T_base', bound=BaseParameterObject)
 
@@ -126,7 +131,8 @@ class BaseParameterObjectType(BaseOpenAPIObjectType[T_base]):
             min_values=1,
             max_values=1,
             validators=(CONTENT_TYPE_VALIDATOR,)
-        )
+        ),
+        'x-parameterType': t.StringType(enum=PARAMETER_TYPE),
     }
 
     def convert(

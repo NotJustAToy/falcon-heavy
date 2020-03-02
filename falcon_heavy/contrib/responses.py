@@ -154,7 +154,7 @@ class OpenAPIResponse:
             self.headers.update(headers)
         self.cookies = cookies or ()
         if media is not t.Undefined and content_type is None:
-            raise ValueError("You should specified content type")
+            raise ValueError("You should specify content type")
         if content_type is not None:
             self.content_type = content_type
         if content_length is not None:

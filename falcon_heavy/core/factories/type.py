@@ -18,6 +18,7 @@ import typing as ty
 from falcon_heavy.core import types as t, openapi as o
 
 from .registry import registered, hashkey
+from .utils import merge_schemas
 
 __all__ = (
     'FormatFactory',
@@ -164,8 +165,8 @@ class TypeFactory:
             additional_properties = self.generate(schema.additional_properties_)
 
         pattern_properties = {}
-        if schema.pattern_properties_:
-            for pattern, property_schema in schema.pattern_properties_.items():
+        if schema.x_pattern_properties:
+            for pattern, property_schema in schema.x_pattern_properties.items():
                 pattern_properties[pattern] = self.generate(property_schema)
 
         return t.ObjectType(
@@ -240,6 +241,10 @@ class TypeFactory:
             nullable=nullable
         )
 
+    def _generate_merged(self, schema: o.SchemaObject) -> t.AbstractConvertible:
+        assert schema.all_of is not None
+        return self._generate_no_register(merge_schemas(schema.all_of))
+
     def _generate_allof_type(self, schema: o.SchemaObject) -> t.AllOfType:
         assert schema.all_of is not None
         return t.AllOfType(
@@ -275,9 +280,7 @@ class TypeFactory:
             nullable=schema.nullable
         )
 
-    @registered(key=lambda schema, allow_model_level_polymorphic=True: hashkey(
-        schema.path, allow_model_level_polymorphic=allow_model_level_polymorphic))
-    def generate(
+    def _generate_no_register(
             self, schema: o.SchemaObject, allow_model_level_polymorphic: bool = True) -> t.AbstractConvertible:
         format_factory: ty.Optional[FormatFactory] = None
         if schema.type is not None and schema.format is not None:
@@ -318,6 +321,9 @@ class TypeFactory:
         elif schema.discriminator and schema.one_of:
             return self._generate_discriminated_type(schema.discriminator, schema.one_of, schema.nullable)
 
+        elif schema.is_mergeable:
+            return self._generate_merged(schema)
+
         elif schema.all_of:
             return self._generate_allof_type(schema)
 
@@ -332,3 +338,9 @@ class TypeFactory:
 
         else:
             return _generate_any_type(schema)
+
+    @registered(key=lambda schema, allow_model_level_polymorphic=True: hashkey(
+        schema.path, allow_model_level_polymorphic=allow_model_level_polymorphic))
+    def generate(
+            self, schema: o.SchemaObject, allow_model_level_polymorphic: bool = True) -> t.AbstractConvertible:
+        return self._generate_no_register(schema, allow_model_level_polymorphic=allow_model_level_polymorphic)

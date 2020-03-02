@@ -357,6 +357,7 @@ class AbstractOpenAPIDecorator:
         try:
             response = view(OpenAPIRequest(
                 original=request.original,
+                method=operation.method,
                 content=request_object.content,
                 path_params=request_object.path_params,
                 query_params=request_object.query_params,

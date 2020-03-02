@@ -21,6 +21,7 @@ __all__ = (
 
 class OpenAPIRequest(ty.NamedTuple):
     original: ty.Any
+    method: str
     content: ty.Any
     path_params: ty.Mapping[str, ty.Any]
     query_params: ty.Mapping[str, ty.Any]
