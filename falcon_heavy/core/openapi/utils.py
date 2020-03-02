@@ -12,37 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import pathlib
 import typing as ty
-from urllib.parse import urljoin
-
-import yaml
-
-from falcon_heavy.core.types import RefHandlers, Path
-from falcon_heavy.core import make_specification_conversion_context
-
-from .openapi import OpenAPIObject, OpenAPIObjectType
 
 __all__ = (
-    'LoadFunc',
-    'load_specification',
+    'are_all_items_equal',
 )
 
 
-LoadFunc = ty.Callable[[ty.IO], ty.Mapping]
-
-
-def load_specification(
-        path: str,
-        handlers: ty.Optional[RefHandlers] = None,
-        load_func: LoadFunc = yaml.safe_load
-) -> ty.Optional[OpenAPIObject]:
-    with open(path) as fh:
-        referrer = load_func(fh)
-    base_uri = urljoin('file://', pathlib.Path(os.path.abspath(path)).as_uri())
-    return OpenAPIObjectType().convert(
-        referrer,
-        Path(base_uri),
-        **make_specification_conversion_context(base_uri, referrer, handlers=handlers)
-    )
+def are_all_items_equal(items: ty.Sequence) -> bool:
+    return items and items.count(items[0]) == len(items)

@@ -275,7 +275,7 @@ class UrlencodedMediaTypeFactory(AbstractRequestMediaTypeFactory):
 
             style: BaseParameterStyle = IDENTITY_PARAMETER_STYLE
 
-            if property_schema.parameter_type is not None:
+            if property_schema.inferred_parameter_type is not None:
                 property_encoding: ty.Optional[o.EncodingObject] = None
                 if encoding is not None:
                     property_encoding = encoding.get(property_name)
@@ -293,16 +293,22 @@ class UrlencodedMediaTypeFactory(AbstractRequestMediaTypeFactory):
                 else:
                     parameter_style: str = o.PARAMETER_STYLE.FORM
                     parameter_explode: bool = True
+                    parameter_type: ty.Optional[str] = None
                     if property_encoding is not None:
                         parameter_style = property_encoding.style
                         parameter_explode = property_encoding.explode
+                        parameter_type = property_encoding.x_parameter_type
 
-                    style = PARAMETER_STYLES[
-                        o.PARAMETER_LOCATION.QUERY,
-                        property_schema.parameter_type,
-                        parameter_style,
-                        parameter_explode
-                    ]
+                    if parameter_type is None:
+                        parameter_type = property_schema.inferred_parameter_type
+
+                    if parameter_type is not None:
+                        style = PARAMETER_STYLES[
+                            o.PARAMETER_LOCATION.QUERY,
+                            parameter_type,
+                            parameter_style,
+                            parameter_explode
+                        ]
 
             subtype = self.type_factory.generate(property_schema)
 

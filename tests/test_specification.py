@@ -1157,6 +1157,25 @@ class SchemaTest(unittest.TestCase):
             ]
         )
 
+    def test_improperly_x_merge_usage(self):
+        self._invalid(
+            SchemaObjectType,
+            {
+                "allOf": [
+                    {
+                        "type": "integer"
+                    },
+                    {
+                        "type": "string"
+                    }
+                ],
+                "x-merge": True
+            },
+            expected_errors=[
+                ("#", "The types of all subschemas in `allOf` must be the same when `x-merge` is true")
+            ]
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

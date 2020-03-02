@@ -18,7 +18,7 @@ from falcon_heavy.core import types as t
 
 from .base import BaseOpenAPIObjectType
 from .header import HeaderObject
-from .constants import PARAMETER_STYLE
+from .constants import PARAMETER_STYLE, PARAMETER_TYPE
 from .validators import CONTENT_TYPE_VALIDATOR
 
 __all__ = (
@@ -60,6 +60,10 @@ class EncodingObject(t.Object):
     def allow_reserved(self) -> bool:
         return self['allowReserved']
 
+    @property
+    def x_parameter_type(self) -> ty.Optional[str]:
+        return self.get('x-parameterType')
+
 
 class EncodingObjectType(BaseOpenAPIObjectType[EncodingObject], result_class=EncodingObject):
 
@@ -84,7 +88,8 @@ class EncodingObjectType(BaseOpenAPIObjectType[EncodingObject], result_class=Enc
             enum=[False],
             messages={'enum': "`allowReserved` permanently unsupported"},
             default=False
-        )
+        ),
+        'x-parameterType': t.StringType(enum=PARAMETER_TYPE),
     }
 
 

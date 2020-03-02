@@ -13,8 +13,15 @@
 # limitations under the License.
 
 import re
+import os
+import pathlib
 import typing as ty
+from urllib.parse import urljoin
 
+import yaml
+
+from falcon_heavy.core.types import RefHandlers, Path
+from falcon_heavy.core import make_specification_conversion_context
 from falcon_heavy.core import types as t
 
 from .base import BaseOpenAPIObjectType
@@ -30,6 +37,8 @@ from .components import ComponentsObject, ComponentsObjectType
 from .constants import HTTP_METHODS
 
 __all__ = (
+    'LoadFunc',
+    'load_specification',
     'OpenAPIObject',
     'OpenAPIObjectType',
 )
@@ -142,3 +151,23 @@ class OpenAPIObjectType(BaseOpenAPIObjectType[OpenAPIObject], result_class=OpenA
             raise t.SchemaError(*errors)
 
         return result
+
+
+LoadFunc = ty.Callable[[ty.IO], ty.Mapping]
+
+
+def load_specification(
+        path: str,
+        handlers: ty.Optional[RefHandlers] = None,
+        load_func: LoadFunc = yaml.safe_load
+) -> OpenAPIObject:
+    with open(path) as fh:
+        referrer = load_func(fh)
+    base_uri = urljoin('file://', pathlib.Path(os.path.abspath(path)).as_uri())
+    result = OpenAPIObjectType().convert(
+        referrer,
+        Path(base_uri),
+        **make_specification_conversion_context(base_uri, referrer, handlers=handlers)
+    )
+    assert result is not None
+    return result

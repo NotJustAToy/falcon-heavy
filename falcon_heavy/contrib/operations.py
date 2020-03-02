@@ -67,9 +67,8 @@ class OpenAPIOperations(ty.Dict[OpenAPIPath, ty.Dict[str, OpenAPIOperation]]):
 
     @classmethod
     def from_file(cls: ty.Type[T], path: str, handlers: ty.Optional[t.RefHandlers] = None) -> T:
-        openapi_object: ty.Optional[o.OpenAPIObject] = o.load_specification(
+        openapi_object: o.OpenAPIObject = o.load_specification(
             path, handlers=handlers)
-        assert openapi_object is not None
         return cls.from_openapi_object(openapi_object)
 
     @classmethod

@@ -186,7 +186,10 @@ class ParameterFactory:
         style: BaseParameterStyle = IDENTITY_PARAMETER_STYLE
 
         if parameter.schema:
-            parameter_type = parameter.schema.parameter_type
+            parameter_type: ty.Optional[str] = parameter.x_parameter_type
+
+            if parameter_type is None:
+                parameter_type = parameter.schema.inferred_parameter_type
 
             if parameter_type is not None:
                 style = PARAMETER_STYLES[
